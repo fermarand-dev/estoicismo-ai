@@ -1,9 +1,8 @@
-
 {
   "name": "Estoicismo AI",
   "short_name": "Estoicismo",
   "description": "Sua bússola diária de sabedoria e disciplina estoica.",
-  "start_url": "https://www.estoicismoai.com.br/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0f1115",
   "theme_color": "#0f1115",
