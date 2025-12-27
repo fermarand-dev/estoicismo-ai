@@ -1,71 +1,88 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 
 function App() {
+  const [user, setUser] = useState<any>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleLogin() {
-    setLoading(true)
-    setError(null)
+  useEffect(() => {
+    // Verifica sessão ao carregar
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null)
+      setLoading(false)
+    })
 
+    // Escuta mudanças de login/logout
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+      }
+    )
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+
+  async function handleLogin() {
+    setError(null)
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-
-    if (error) {
-      setError(error.message)
-    } else {
-      alert('Login realizado com sucesso')
-    }
-
-    setLoading(false)
+    if (error) setError(error.message)
   }
 
   async function loginWithGoogle() {
-    setError(null)
-
-    const { error } = await supabase.auth.signInWithOAuth({
+    await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
       },
     })
-
-    if (error) {
-      setError(error.message)
-    }
   }
 
+  async function logout() {
+    await supabase.auth.signOut()
+  }
+
+  if (loading) {
+    return (
+      <div style={center}>
+        <p>Carregando...</p>
+      </div>
+    )
+  }
+
+  // 🔐 TELA LOGADA
+  if (user) {
+    return (
+      <div style={center}>
+        <h1>Bem-vindo ao Estoicismo AI</h1>
+        <p>{user.email}</p>
+
+        <button style={button} onClick={logout}>
+          Sair
+        </button>
+      </div>
+    )
+  }
+
+  // 🔓 TELA DE LOGIN
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: '#0b0d10',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#e5e7eb',
-        fontFamily: 'Inter, sans-serif',
-      }}
-    >
+    <div style={center}>
       <div style={{ width: 360 }}>
-        <h1 style={{ textAlign: 'center', marginBottom: 8 }}>
-          Estoicismo AI
-        </h1>
-        <p style={{ textAlign: 'center', opacity: 0.6, marginBottom: 24 }}>
-          A virtude como bússola
-        </p>
+        <h1 style={{ textAlign: 'center' }}>Estoicismo AI</h1>
 
         <input
           type="email"
           placeholder="E-mail"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
+          style={input}
         />
 
         <input
@@ -73,34 +90,16 @@ function App() {
           placeholder="Senha"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={inputStyle}
+          style={input}
         />
 
-        {error && (
-          <p style={{ color: '#f87171', fontSize: 13, marginBottom: 10 }}>
-            {error}
-          </p>
-        )}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          style={{
-            ...buttonStyle,
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? 'Aguarde...' : 'Entrar agora'}
+        <button style={button} onClick={handleLogin}>
+          Entrar
         </button>
 
-        <div style={{ textAlign: 'center', margin: '16px 0', opacity: 0.4 }}>
-          ou
-        </div>
-
-        <button
-          onClick={loginWithGoogle}
-          style={googleButtonStyle}
-        >
+        <button style={googleButton} onClick={loginWithGoogle}>
           Entrar com Google
         </button>
       </div>
@@ -108,35 +107,36 @@ function App() {
   )
 }
 
-const inputStyle: React.CSSProperties = {
+const center: React.CSSProperties = {
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: '#0b0d10',
+  color: '#fff',
+}
+
+const input: React.CSSProperties = {
   width: '100%',
   padding: 12,
   marginBottom: 10,
-  borderRadius: 8,
-  border: '1px solid #2a2d33',
-  backgroundColor: '#0b0d10',
-  color: '#e5e7eb',
+  borderRadius: 6,
 }
 
-const buttonStyle: React.CSSProperties = {
+const button: React.CSSProperties = {
   width: '100%',
   padding: 12,
-  borderRadius: 8,
+  marginTop: 10,
+  background: '#f59e0b',
   border: 'none',
-  backgroundColor: '#f59e0b',
-  color: '#0b0d10',
-  fontWeight: 'bold',
   cursor: 'pointer',
 }
 
-const googleButtonStyle: React.CSSProperties = {
-  width: '100%',
-  padding: 12,
-  borderRadius: 8,
-  border: '1px solid #2a2d33',
-  backgroundColor: '#0b0d10',
-  color: '#e5e7eb',
-  cursor: 'pointer',
+const googleButton: React.CSSProperties = {
+  ...button,
+  background: '#111',
+  color: '#fff',
+  border: '1px solid #333',
 }
 
 export default App
