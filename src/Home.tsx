@@ -1,123 +1,72 @@
+import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { getMyReflections, Reflection } from './services/reflections'
 
-type HomeProps = {
-  user: any
-}
+export default function Home() {
+  const [reflections, setReflections] = useState<Reflection[]>([])
+  const [loading, setLoading] = useState(true)
 
-export default function Home({ user }: HomeProps) {
-  async function logout() {
+  useEffect(() => {
+    loadReflections()
+  }, [])
+
+  async function loadReflections() {
+    try {
+      const data = await getMyReflections()
+      setReflections(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleLogout() {
     await supabase.auth.signOut()
+    window.location.reload()
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: '#0f1115',
-        color: '#e5e7eb',
-        fontFamily: 'Inter, sans-serif',
-        padding: 24,
-      }}
-    >
-      {/* Header */}
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 32,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              backgroundColor: '#f59e0b',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              color: '#0f1115',
-              fontSize: 20,
-            }}
-          >
-            E
-          </div>
-
-          <div>
-            <h1 style={{ margin: 0 }}>Estoicismo AI</h1>
-            <p style={{ margin: 0, opacity: 0.6, fontSize: 13 }}>
-              {user.email}
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={logout}
-          style={{
-            background: 'transparent',
-            border: '1px solid #2a2d33',
-            color: '#e5e7eb',
-            padding: '8px 12px',
-            borderRadius: 8,
-            cursor: 'pointer',
-          }}
-        >
+    <div style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2>📖 Suas reflexões</h2>
+        <button onClick={handleLogout} style={logoutStyle}>
           Sair
         </button>
       </header>
 
-      {/* Main */}
-      <main
-        style={{
-          maxWidth: 640,
-          margin: '0 auto',
-          backgroundColor: '#111827',
-          padding: 24,
-          borderRadius: 16,
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>
-          Bem-vindo ao seu Diário Estoico
-        </h2>
+      {loading && <p>Carregando...</p>}
 
-        <p style={{ opacity: 0.7 }}>
-          Use este espaço para refletir sobre o seu dia, seus desafios
-          e como agir com virtude diante das situações.
-        </p>
+      {!loading && reflections.length === 0 && (
+        <p style={{ opacity: 0.6 }}>Você ainda não escreveu nenhuma reflexão.</p>
+      )}
 
-        <textarea
-          placeholder="Escreva sua reflexão de hoje..."
-          style={{
-            width: '100%',
-            minHeight: 140,
-            marginTop: 16,
-            padding: 12,
-            borderRadius: 12,
-            border: '1px solid #2a2d33',
-            backgroundColor: '#0f1115',
-            color: '#e5e7eb',
-            resize: 'none',
-          }}
-        />
-
-        <button
-          style={{
-            marginTop: 16,
-            padding: '12px 16px',
-            backgroundColor: '#f59e0b',
-            border: 'none',
-            borderRadius: 12,
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            color: '#0f1115',
-          }}
-        >
-          Refletir
-        </button>
-      </main>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {reflections.map((item) => (
+          <div key={item.id} style={cardStyle}>
+            <small style={{ opacity: 0.5 }}>
+              {new Date(item.created_at).toLocaleDateString('pt-BR')}
+            </small>
+            <p style={{ marginTop: 8 }}>{item.content}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
+}
+
+const cardStyle: React.CSSProperties = {
+  backgroundColor: '#111827',
+  borderRadius: 12,
+  padding: 16,
+  border: '1px solid #1f2937',
+}
+
+const logoutStyle: React.CSSProperties = {
+  background: 'none',
+  border: '1px solid #374151',
+  color: '#e5e7eb',
+  padding: '6px 12px',
+  borderRadius: 6,
+  cursor: 'pointer',
 }
