@@ -1,23 +1,40 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
-import { getMyReflections, Reflection } from './services/reflections'
+import {
+  getMyReflections,
+  createReflection,
+  Reflection,
+} from './services/reflections'
 
 export default function Home() {
   const [reflections, setReflections] = useState<Reflection[]>([])
+  const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadReflections()
   }, [])
 
   async function loadReflections() {
+    setLoading(true)
+    const data = await getMyReflections()
+    setReflections(data)
+    setLoading(false)
+  }
+
+  async function handleSave() {
+    if (!content.trim()) return
+
     try {
-      const data = await getMyReflections()
-      setReflections(data)
+      setSaving(true)
+      await createReflection(content)
+      setContent('')
+      await loadReflections()
     } catch (err) {
-      console.error(err)
+      alert('Erro ao salvar reflexão')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
@@ -29,16 +46,33 @@ export default function Home() {
   return (
     <div style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h2>📖 Suas reflexões</h2>
+        <h2>📖 Diário Estoico</h2>
         <button onClick={handleLogout} style={logoutStyle}>
           Sair
         </button>
       </header>
 
+      <textarea
+        placeholder="Escreva sua reflexão do dia..."
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        style={textareaStyle}
+      />
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        style={buttonStyle}
+      >
+        {saving ? 'Salvando...' : 'Salvar reflexão'}
+      </button>
+
+      <hr style={{ margin: '32px 0', opacity: 0.2 }} />
+
       {loading && <p>Carregando...</p>}
 
       {!loading && reflections.length === 0 && (
-        <p style={{ opacity: 0.6 }}>Você ainda não escreveu nenhuma reflexão.</p>
+        <p style={{ opacity: 0.6 }}>Nenhuma reflexão ainda.</p>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -53,6 +87,27 @@ export default function Home() {
       </div>
     </div>
   )
+}
+
+const textareaStyle: React.CSSProperties = {
+  width: '100%',
+  minHeight: 120,
+  padding: 12,
+  borderRadius: 12,
+  border: '1px solid #1f2937',
+  backgroundColor: '#020617',
+  color: '#e5e7eb',
+  marginBottom: 12,
+}
+
+const buttonStyle: React.CSSProperties = {
+  padding: '10px 16px',
+  borderRadius: 8,
+  border: 'none',
+  backgroundColor: '#f59e0b',
+  color: '#020617',
+  fontWeight: 'bold',
+  cursor: 'pointer',
 }
 
 const cardStyle: React.CSSProperties = {
