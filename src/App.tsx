@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import Home from './Home'
 
 function App() {
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -15,7 +16,7 @@ function App() {
       setLoading(false)
     })
 
-    // Escuta mudanças de login/logout
+    // Escuta mudanças de autenticação
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
@@ -45,10 +46,6 @@ function App() {
     })
   }
 
-  async function logout() {
-    await supabase.auth.signOut()
-  }
-
   if (loading) {
     return (
       <div style={center}>
@@ -57,25 +54,21 @@ function App() {
     )
   }
 
-  // 🔐 TELA LOGADA
+  // 🔐 Usuário logado → Home
   if (user) {
-    return (
-      <div style={center}>
-        <h1>Bem-vindo ao Estoicismo AI</h1>
-        <p>{user.email}</p>
-
-        <button style={button} onClick={logout}>
-          Sair
-        </button>
-      </div>
-    )
+    return <Home user={user} />
   }
 
-  // 🔓 TELA DE LOGIN
+  // 🔓 Usuário não logado → Login
   return (
     <div style={center}>
       <div style={{ width: 360 }}>
-        <h1 style={{ textAlign: 'center' }}>Estoicismo AI</h1>
+        <h1 style={{ textAlign: 'center', marginBottom: 8 }}>
+          Estoicismo AI
+        </h1>
+        <p style={{ textAlign: 'center', opacity: 0.6, marginBottom: 24 }}>
+          A virtude como bússola
+        </p>
 
         <input
           type="email"
@@ -93,7 +86,7 @@ function App() {
           style={input}
         />
 
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
         <button style={button} onClick={handleLogin}>
           Entrar
@@ -114,6 +107,7 @@ const center: React.CSSProperties = {
   justifyContent: 'center',
   background: '#0b0d10',
   color: '#fff',
+  fontFamily: 'Inter, sans-serif',
 }
 
 const input: React.CSSProperties = {
@@ -121,6 +115,9 @@ const input: React.CSSProperties = {
   padding: 12,
   marginBottom: 10,
   borderRadius: 6,
+  border: '1px solid #2a2d33',
+  backgroundColor: '#0b0d10',
+  color: '#e5e7eb',
 }
 
 const button: React.CSSProperties = {
@@ -129,6 +126,8 @@ const button: React.CSSProperties = {
   marginTop: 10,
   background: '#f59e0b',
   border: 'none',
+  borderRadius: 6,
+  fontWeight: 'bold',
   cursor: 'pointer',
 }
 
