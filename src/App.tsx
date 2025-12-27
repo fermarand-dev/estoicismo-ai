@@ -26,9 +26,18 @@ function App() {
   }
 
   async function loginWithGoogle() {
-    await supabase.auth.signInWithOAuth({
+    setError(null)
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
     })
+
+    if (error) {
+      setError(error.message)
+    }
   }
 
   return (
@@ -68,13 +77,18 @@ function App() {
         />
 
         {error && (
-          <p style={{ color: '#f87171', fontSize: 13 }}>{error}</p>
+          <p style={{ color: '#f87171', fontSize: 13, marginBottom: 10 }}>
+            {error}
+          </p>
         )}
 
         <button
           onClick={handleLogin}
           disabled={loading}
-          style={buttonStyle}
+          style={{
+            ...buttonStyle,
+            opacity: loading ? 0.7 : 1,
+          }}
         >
           {loading ? 'Aguarde...' : 'Entrar agora'}
         </button>
