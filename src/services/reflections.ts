@@ -13,10 +13,9 @@ export type Reflection = {
 export async function listarReflexoes(): Promise<Reflection[]> {
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser()
 
-  if (userError || !user) {
+  if (!user) {
     throw new Error('Usuário não autenticado')
   }
 
@@ -39,52 +38,52 @@ export async function listarReflexoes(): Promise<Reflection[]> {
 export async function salvarReflexao(textoUsuario: string): Promise<void> {
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser()
 
-  if (userError || !user) {
+  if (!user) {
     throw new Error('Usuário não autenticado')
   }
 
-  // 1️⃣ Verificar se o usuário é premium
+  // 🔹 Verificar se o usuário é premium
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('is_premium')
     .eq('id', user.id)
     .single()
 
-  if (profileError) {
+  if (profileError || !profile) {
     throw new Error('Erro ao verificar plano do usuário')
   }
 
-  // 2️⃣ Se FREE, verificar quantas reflexões já existem
+  // 🔒 REGRA FREE: só pode ter 1 reflexão
   if (!profile.is_premium) {
-    const { count, error: countError } = await supabase
+    const { data: existingReflection, error } = await supabase
       .from('reflections')
-      .select('*', { count: 'exact', head: true })
+      .select('id')
       .eq('user_id', user.id)
+      .limit(1)
 
-    if (countError) {
+    if (error) {
       throw new Error('Erro ao verificar limite de reflexões')
     }
 
-    if ((count ?? 0) >= 1) {
+    if (existingReflection && existingReflection.length > 0) {
       throw new Error(
         'Usuários do plano gratuito podem salvar apenas uma reflexão.'
       )
     }
   }
 
-  // 3️⃣ Gerar reflexão com IA
+  // 🧠 Gerar reflexão com IA
   const reflexaoIA = await gerarReflexaoEstoica(textoUsuario)
 
-  // 4️⃣ Salvar no Supabase
-  const { error } = await supabase.from('reflections').insert({
+  // 💾 Salvar no banco
+  const { error: insertError } = await supabase.from('reflections').insert({
     user_id: user.id,
     content: reflexaoIA,
   })
 
-  if (error) {
+  if (insertError) {
     throw new Error('Erro ao salvar reflexão')
   }
 }
