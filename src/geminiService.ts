@@ -7,11 +7,11 @@ export async function generateStoicReflection(
   prompt: string,
   isPremium: boolean
 ) {
-  // 🔒 Regra do plano FREE
+  // 🔒 REGRA DO PLANO FREE
   if (!isPremium) {
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from('reflections')
-      .select('*', { count: 'exact', head: true })
+      .select('id')
       .eq('user_id', userId)
       .eq('is_ai_generated', true)
 
@@ -20,14 +20,14 @@ export async function generateStoicReflection(
       throw new Error('Erro ao verificar limite gratuito')
     }
 
-    if ((count ?? 0) >= 1) {
+    if (data && data.length >= 1) {
       throw new Error(
         'Você já usou sua reflexão gratuita. Faça upgrade para continuar.'
       )
     }
   }
 
-  // 🤖 Chamada à IA
+  // 🤖 CHAMADA À IA
   const response = await fetch(
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' +
       GEMINI_API_KEY,
@@ -51,11 +51,12 @@ export async function generateStoicReflection(
   }
 
   const data = await response.json()
+
   const text =
-    data.candidates?.[0]?.content?.parts?.[0]?.text ??
+    data?.candidates?.[0]?.content?.parts?.[0]?.text ??
     'Não foi possível gerar a reflexão.'
 
-  // 💾 Salva no banco como IA
+  // 💾 SALVAR NO BANCO
   const { error: insertError } = await supabase.from('reflections').insert({
     user_id: userId,
     content: text,
