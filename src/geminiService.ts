@@ -1,52 +1,37 @@
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-import { GoogleGenAI, Type } from "@google/genai";
-import { StoicMessage } from "../types";
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
-const STOIC_SYSTEM_PROMPT = `
-Você é a IA central de um aplicativo chamado Estoicismo AI, focado em estoicismo prático.
-Seu papel é gerar conteúdo original, inédito e não repetitivo, guiando o usuário com base nos princípios do estoicismo clássico.
+if (!apiKey) {
+  throw new Error('VITE_GEMINI_API_KEY não configurada no ambiente')
+}
 
-REGRAS CRÍTICAS:
-1. NÃO REPETIÇÃO: Nunca repita mensagens já entregues. Use novas analogias e exemplos.
-2. ORIGINALIDADE: Nunca copie textos literais de filósofos estoicos. Utilize interpretações modernas.
-3. FORMATO: Sempre responda estritamente em JSON.
-4. TOM: Calmo, inspirador, prático, acolhedor.
+const genAI = new GoogleGenerativeAI(apiKey)
 
-TEMAS: Controle, Aceitação, Disciplina, Virtude, Impermanência, Resiliência, Autodomínio, Clareza.
-`;
+export async function gerarReflexaoEstoica(textoUsuario: string): Promise<string> {
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+    })
 
-export const generateStoicMessage = async (history: StoicMessage[]): Promise<StoicMessage> => {
-  // Inicializa o cliente com a chave de ambiente
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const previousTitles = history.map(h => h.title).join(", ");
-  
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: `Gere uma nova lição estoica hoje. Títulos já usados anteriormente para evitar: [${previousTitles}].`,
-    config: {
-      systemInstruction: STOIC_SYSTEM_PROMPT,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          title: { type: Type.STRING, description: 'Frase curta e impactante' },
-          message: { type: Type.STRING, description: 'Parágrafo inspirador e prático' },
-          reflection: { type: Type.STRING, description: 'Pergunta que provoque autoconhecimento' },
-          exercise: { type: Type.STRING, description: 'Ação simples para o dia' }
-        },
-        required: ["title", "message", "reflection", "exercise"]
-      }
-    }
-  });
+    const prompt = `
+Você é um mentor estoico inspirado em Marco Aurélio, Sêneca e Epicteto.
 
-  const text = response.text;
-  if (!text) throw new Error("Falha ao obter resposta da IA");
-  
-  const data = JSON.parse(text);
-  return {
-    ...data,
-    id: crypto.randomUUID(),
-    date: new Date().toISOString()
-  };
-};
+Analise o texto abaixo e gere uma reflexão curta, profunda e prática,
+em português, ajudando o usuário a enxergar a situação com clareza,
+autodomínio e virtude.
 
+Texto do usuário:
+"${textoUsuario}"
+    `
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response
+    const text = response.text()
+
+    return text.trim()
+  } catch (error) {
+    console.error('Erro ao gerar reflexão:', error)
+    throw new Error('Erro ao gerar reflexão com a IA')
+  }
+}
