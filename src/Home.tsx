@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import { salvarReflexao, listarReflexoes, Reflection } from './services/reflections'
+import {
+  gerarESalvarReflexaoIA,
+  listarReflexoes,
+  Reflection,
+} from './services/reflections'
 
 export default function Home() {
   const [texto, setTexto] = useState('')
@@ -25,12 +29,12 @@ export default function Home() {
     setSucesso(false)
 
     try {
-      await salvarReflexao(texto)
+      await gerarESalvarReflexaoIA(texto)
       setTexto('')
       setSucesso(true)
       await carregarReflexoes()
-    } catch (err) {
-      setErro('Não foi possível gerar a reflexão. Tente novamente.')
+    } catch (err: any) {
+      setErro(err.message || 'Erro ao gerar reflexão')
     } finally {
       setLoading(false)
     }
