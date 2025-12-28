@@ -1,37 +1,71 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { supabase } from './supabaseClient'
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
-if (!apiKey) {
-  throw new Error('VITE_GEMINI_API_KEY não configurada no ambiente')
-}
+export async function generateStoicReflection(
+  userId: string,
+  prompt: string,
+  isPremium: boolean
+) {
+  // 🔒 Regra do plano FREE
+  if (!isPremium) {
+    const { count, error } = await supabase
+      .from('reflections')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_ai_generated', true)
 
-const genAI = new GoogleGenerativeAI(apiKey)
+    if (error) {
+      console.error(error)
+      throw new Error('Erro ao verificar limite gratuito')
+    }
 
-export async function gerarReflexaoEstoica(textoUsuario: string): Promise<string> {
-  try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-    })
-
-    const prompt = `
-Você é um mentor estoico inspirado em Marco Aurélio, Sêneca e Epicteto.
-
-Analise o texto abaixo e gere uma reflexão curta, profunda e prática,
-em português, ajudando o usuário a enxergar a situação com clareza,
-autodomínio e virtude.
-
-Texto do usuário:
-"${textoUsuario}"
-    `
-
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
-
-    return text.trim()
-  } catch (error) {
-    console.error('Erro ao gerar reflexão:', error)
-    throw new Error('Erro ao gerar reflexão com a IA')
+    if ((count ?? 0) >= 1) {
+      throw new Error(
+        'Você já usou sua reflexão gratuita. Faça upgrade para continuar.'
+      )
+    }
   }
+
+  // 🤖 Chamada à IA
+  const response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' +
+      GEMINI_API_KEY,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error('Erro ao gerar reflexão com IA')
+  }
+
+  const data = await response.json()
+  const text =
+    data.candidates?.[0]?.content?.parts?.[0]?.text ??
+    'Não foi possível gerar a reflexão.'
+
+  // 💾 Salva no banco como IA
+  const { error: insertError } = await supabase.from('reflections').insert({
+    user_id: userId,
+    content: text,
+    is_ai_generated: true,
+  })
+
+  if (insertError) {
+    console.error(insertError)
+    throw new Error('Erro ao salvar reflexão')
+  }
+
+  return text
 }
