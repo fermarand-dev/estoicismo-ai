@@ -56,25 +56,17 @@ export default function App() {
       return
     }
 
-    // cria perfil FREE
-    await supabase.from('profiles').insert({
-      id: data.user?.id,
-      name,
-      is_premium: false,
-    })
-  }
-
-  async function loginWithGoogle() {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin,
-      },
-    })
+    if (data.user) {
+      await supabase.from('profiles').insert({
+        id: data.user.id,
+        name,
+        is_premium: false,
+      })
+    }
   }
 
   if (loading) {
-    return <p style={{ textAlign: 'center' }}>Carregando...</p>
+    return <p style={{ color: '#fff', textAlign: 'center' }}>Carregando...</p>
   }
 
   if (user) {
@@ -84,7 +76,10 @@ export default function App() {
   return (
     <div style={container}>
       <div style={card}>
-        <h1 style={{ textAlign: 'center' }}>Estoicismo AI</h1>
+        <h1>Estoicismo AI</h1>
+        <p style={{ opacity: 0.6 }}>
+          {isRegister ? 'Criar conta' : 'Entrar'}
+        </p>
 
         {isRegister && (
           <input
@@ -112,47 +107,50 @@ export default function App() {
 
         {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
-        {isRegister ? (
-          <button style={button} onClick={handleRegister}>
-            Criar conta gratuita
-          </button>
-        ) : (
-          <button style={button} onClick={handleLogin}>
-            Entrar
-          </button>
-        )}
-
-        <button style={googleButton} onClick={loginWithGoogle}>
-          Entrar com Google
+        <button
+          onClick={isRegister ? handleRegister : handleLogin}
+          style={button}
+        >
+          {isRegister ? 'Criar conta' : 'Entrar'}
         </button>
 
-        <p
-          style={{ marginTop: 16, cursor: 'pointer', opacity: 0.7 }}
+        <button
           onClick={() => setIsRegister(!isRegister)}
+          style={link}
         >
           {isRegister
-            ? 'Já tem conta? Entrar'
-            : 'Não tem conta? Criar conta grátis'}
-        </p>
+            ? 'Já tenho conta'
+            : 'Criar uma nova conta'}
+        </button>
+
+        <button
+          onClick={() =>
+            supabase.auth.signInWithOAuth({ provider: 'google' })
+          }
+          style={google}
+        >
+          Entrar com Google
+        </button>
       </div>
     </div>
   )
 }
 
+/* estilos */
 const container: React.CSSProperties = {
   minHeight: '100vh',
+  background: '#0b0d10',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#0f1115',
   color: '#e5e7eb',
 }
 
 const card: React.CSSProperties = {
   width: 360,
+  background: '#111318',
   padding: 24,
   borderRadius: 12,
-  background: '#111827',
 }
 
 const input: React.CSSProperties = {
@@ -161,7 +159,7 @@ const input: React.CSSProperties = {
   marginBottom: 10,
   borderRadius: 8,
   border: '1px solid #2a2d33',
-  background: '#0f1115',
+  background: '#0b0d10',
   color: '#e5e7eb',
 }
 
@@ -171,15 +169,26 @@ const button: React.CSSProperties = {
   borderRadius: 8,
   border: 'none',
   background: '#f59e0b',
-  color: '#0f1115',
+  color: '#000',
   fontWeight: 'bold',
+  marginBottom: 10,
   cursor: 'pointer',
-  marginBottom: 8,
 }
 
-const googleButton: React.CSSProperties = {
-  ...button,
-  background: '#020617',
-  color: '#e5e7eb',
+const link: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  color: '#9ca3af',
+  cursor: 'pointer',
+  marginBottom: 10,
+}
+
+const google: React.CSSProperties = {
+  width: '100%',
+  padding: 12,
+  borderRadius: 8,
   border: '1px solid #2a2d33',
+  background: '#0b0d10',
+  color: '#e5e7eb',
+  cursor: 'pointer',
 }
