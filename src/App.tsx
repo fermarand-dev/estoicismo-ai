@@ -2,21 +2,26 @@ import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
 import Home from './Home'
 
-function App() {
+export default function App() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // login
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+
+  // cadastro
+  const [name, setName] = useState('')
+  const [isRegister, setIsRegister] = useState(false)
+
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Verifica sessão ao carregar
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null)
       setLoading(false)
     })
 
-    // Escuta mudanças de autenticação
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
@@ -34,7 +39,29 @@ function App() {
       email,
       password,
     })
+
     if (error) setError(error.message)
+  }
+
+  async function handleRegister() {
+    setError(null)
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    // cria perfil FREE
+    await supabase.from('profiles').insert({
+      id: data.user?.id,
+      name,
+      is_premium: false,
+    })
   }
 
   async function loginWithGoogle() {
@@ -47,31 +74,28 @@ function App() {
   }
 
   if (loading) {
-    return (
-      <div style={center}>
-        <p>Carregando...</p>
-      </div>
-    )
+    return <p style={{ textAlign: 'center' }}>Carregando...</p>
   }
 
-  // 🔐 Usuário logado → Home
   if (user) {
-    return <Home user={user} />
+    return <Home />
   }
 
-  // 🔓 Usuário não logado → Login
   return (
-    <div style={center}>
-      <div style={{ width: 360 }}>
-        <h1 style={{ textAlign: 'center', marginBottom: 8 }}>
-          Estoicismo AI
-        </h1>
-        <p style={{ textAlign: 'center', opacity: 0.6, marginBottom: 24 }}>
-          A virtude como bússola
-        </p>
+    <div style={container}>
+      <div style={card}>
+        <h1 style={{ textAlign: 'center' }}>Estoicismo AI</h1>
+
+        {isRegister && (
+          <input
+            placeholder="Nome"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={input}
+          />
+        )}
 
         <input
-          type="email"
           placeholder="E-mail"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -88,54 +112,74 @@ function App() {
 
         {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
-        <button style={button} onClick={handleLogin}>
-          Entrar
-        </button>
+        {isRegister ? (
+          <button style={button} onClick={handleRegister}>
+            Criar conta gratuita
+          </button>
+        ) : (
+          <button style={button} onClick={handleLogin}>
+            Entrar
+          </button>
+        )}
 
         <button style={googleButton} onClick={loginWithGoogle}>
           Entrar com Google
         </button>
+
+        <p
+          style={{ marginTop: 16, cursor: 'pointer', opacity: 0.7 }}
+          onClick={() => setIsRegister(!isRegister)}
+        >
+          {isRegister
+            ? 'Já tem conta? Entrar'
+            : 'Não tem conta? Criar conta grátis'}
+        </p>
       </div>
     </div>
   )
 }
 
-const center: React.CSSProperties = {
+const container: React.CSSProperties = {
   minHeight: '100vh',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#0b0d10',
-  color: '#fff',
-  fontFamily: 'Inter, sans-serif',
+  background: '#0f1115',
+  color: '#e5e7eb',
+}
+
+const card: React.CSSProperties = {
+  width: 360,
+  padding: 24,
+  borderRadius: 12,
+  background: '#111827',
 }
 
 const input: React.CSSProperties = {
   width: '100%',
   padding: 12,
   marginBottom: 10,
-  borderRadius: 6,
+  borderRadius: 8,
   border: '1px solid #2a2d33',
-  backgroundColor: '#0b0d10',
+  background: '#0f1115',
   color: '#e5e7eb',
 }
 
 const button: React.CSSProperties = {
   width: '100%',
   padding: 12,
-  marginTop: 10,
-  background: '#f59e0b',
+  borderRadius: 8,
   border: 'none',
-  borderRadius: 6,
+  background: '#f59e0b',
+  color: '#0f1115',
   fontWeight: 'bold',
   cursor: 'pointer',
+  marginBottom: 8,
 }
 
 const googleButton: React.CSSProperties = {
   ...button,
-  background: '#111',
-  color: '#fff',
-  border: '1px solid #333',
+  background: '#020617',
+  color: '#e5e7eb',
+  border: '1px solid #2a2d33',
 }
-
-export default App
