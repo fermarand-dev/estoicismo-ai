@@ -1,127 +1,125 @@
 import { useEffect, useState } from 'react'
-import { supabase } from './supabaseClient'
-import {
-  getMyReflections,
-  createReflection,
-  Reflection,
-} from './services/reflections'
+import { salvarReflexao, listarReflexoes, Reflection } from './services/reflections'
 
 export default function Home() {
-  const [reflections, setReflections] = useState<Reflection[]>([])
-  const [content, setContent] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [texto, setTexto] = useState('')
+  const [reflexoes, setReflexoes] = useState<Reflection[]>([])
+  const [loading, setLoading] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [sucesso, setSucesso] = useState(false)
 
-  useEffect(() => {
-    loadReflections()
-  }, [])
-
-  async function loadReflections() {
-    setLoading(true)
-    const data = await getMyReflections()
-    setReflections(data)
-    setLoading(false)
-  }
-
-  async function handleSave() {
-    if (!content.trim()) return
-
+  async function carregarReflexoes() {
     try {
-      setSaving(true)
-      await createReflection(content)
-      setContent('')
-      await loadReflections()
+      const data = await listarReflexoes()
+      setReflexoes(data)
     } catch (err) {
-      alert('Erro ao salvar reflexão')
-    } finally {
-      setSaving(false)
+      console.error(err)
     }
   }
 
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    window.location.reload()
+  async function handleSalvar() {
+    if (!texto.trim()) return
+
+    setLoading(true)
+    setErro(null)
+    setSucesso(false)
+
+    try {
+      await salvarReflexao(texto)
+      setTexto('')
+      setSucesso(true)
+      await carregarReflexoes()
+    } catch (err) {
+      setErro('Não foi possível gerar a reflexão. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
+  useEffect(() => {
+    carregarReflexoes()
+  }, [])
+
   return (
-    <div style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h2>📖 Diário Estoico</h2>
-        <button onClick={handleLogout} style={logoutStyle}>
-          Sair
-        </button>
-      </header>
+    <div
+      style={{
+        maxWidth: 720,
+        margin: '0 auto',
+        padding: '40px 16px',
+        color: '#e5e7eb',
+      }}
+    >
+      <h1 style={{ marginBottom: 4 }}>Estoicismo AI</h1>
+      <p style={{ opacity: 0.6, marginBottom: 24 }}>
+        Sua bússola diária de clareza, disciplina e autodomínio.
+      </p>
 
       <textarea
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
         placeholder="Escreva sua reflexão do dia..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        style={textareaStyle}
+        style={{
+          width: '100%',
+          minHeight: 140,
+          padding: 16,
+          borderRadius: 10,
+          border: '1px solid #2a2d33',
+          backgroundColor: '#0b0d10',
+          color: '#e5e7eb',
+          marginBottom: 12,
+        }}
       />
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={buttonStyle}
-      >
-        {saving ? 'Salvando...' : 'Salvar reflexão'}
-      </button>
-
-      <hr style={{ margin: '32px 0', opacity: 0.2 }} />
-
-      {loading && <p>Carregando...</p>}
-
-      {!loading && reflections.length === 0 && (
-        <p style={{ opacity: 0.6 }}>Nenhuma reflexão ainda.</p>
+      {erro && (
+        <p style={{ color: '#f87171', marginBottom: 12 }}>{erro}</p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {reflections.map((item) => (
-          <div key={item.id} style={cardStyle}>
-            <small style={{ opacity: 0.5 }}>
-              {new Date(item.created_at).toLocaleDateString('pt-BR')}
-            </small>
-            <p style={{ marginTop: 8 }}>{item.content}</p>
-          </div>
-        ))}
-      </div>
+      {sucesso && (
+        <p style={{ color: '#34d399', marginBottom: 12 }}>
+          Reflexão salva com sucesso 🌱
+        </p>
+      )}
+
+      <button
+        onClick={handleSalvar}
+        disabled={loading}
+        style={{
+          padding: '12px 24px',
+          borderRadius: 8,
+          border: 'none',
+          backgroundColor: '#f59e0b',
+          color: '#0b0d10',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+        }}
+      >
+        {loading ? 'Refletindo...' : 'Refletir'}
+      </button>
+
+      <hr style={{ margin: '40px 0', borderColor: '#1f2937' }} />
+
+      <h2 style={{ marginBottom: 16 }}>Suas reflexões</h2>
+
+      {reflexoes.length === 0 && (
+        <p style={{ opacity: 0.5 }}>Nenhuma reflexão ainda.</p>
+      )}
+
+      {reflexoes.map((r) => (
+        <div
+          key={r.id}
+          style={{
+            backgroundColor: '#111827',
+            padding: 16,
+            borderRadius: 10,
+            marginBottom: 12,
+          }}
+        >
+          <p style={{ whiteSpace: 'pre-wrap' }}>{r.content}</p>
+          <small style={{ opacity: 0.4 }}>
+            {new Date(r.created_at).toLocaleString()}
+          </small>
+        </div>
+      ))}
     </div>
   )
-}
-
-const textareaStyle: React.CSSProperties = {
-  width: '100%',
-  minHeight: 120,
-  padding: 12,
-  borderRadius: 12,
-  border: '1px solid #1f2937',
-  backgroundColor: '#020617',
-  color: '#e5e7eb',
-  marginBottom: 12,
-}
-
-const buttonStyle: React.CSSProperties = {
-  padding: '10px 16px',
-  borderRadius: 8,
-  border: 'none',
-  backgroundColor: '#f59e0b',
-  color: '#020617',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-}
-
-const cardStyle: React.CSSProperties = {
-  backgroundColor: '#111827',
-  borderRadius: 12,
-  padding: 16,
-  border: '1px solid #1f2937',
-}
-
-const logoutStyle: React.CSSProperties = {
-  background: 'none',
-  border: '1px solid #374151',
-  color: '#e5e7eb',
-  padding: '6px 12px',
-  borderRadius: 6,
-  cursor: 'pointer',
 }
