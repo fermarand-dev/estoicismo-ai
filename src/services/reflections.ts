@@ -1,94 +1,49 @@
 import { supabase } from '../supabaseClient'
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-
-export type Reflection = {
+export interface Reflection {
   id: number
   content: string
   created_at: string
 }
 
-export async function listarReflexoes(): Promise<Reflection[]> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Usuário não autenticado')
+export async function salvarReflexao(prompt: string) {
+  const session = await supabase.auth.getSession()
 
-  const { data } = await supabase
-    .from('reflections')
-    .select('id, content, created_at')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+  const accessToken = session.data.session?.access_token
 
-  return data || []
-}
-
-export async function gerarESalvarReflexaoIA(textoUsuario: string) {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Usuário não autenticado')
-
-  // 🔹 verificar plano
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_premium')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile) throw new Error('Perfil não encontrado')
-
-  // 🔒 limite FREE: 1 IA
-  if (!profile.is_premium) {
-    const { data: existing } = await supabase
-      .from('reflections')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('is_ai_generated', true)
-
-    if (existing && existing.length >= 1) {
-      throw new Error(
-        'Você já usou sua reflexão gratuita. Assine o Premium.'
-      )
-    }
+  if (!accessToken) {
+    throw new Error('Usuário não autenticado')
   }
 
-  // 🤖 chamada direta à API Gemini (SEM SDK)
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    'https://lqqvmaxlufmhzyiawalq.supabase.co/functions/v1/generate-reflection',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `Gere uma reflexão estoica curta e prática em português baseada no texto: "${textoUsuario}"`,
-              },
-            ],
-          },
-        ],
+        prompt,
       }),
     }
   )
 
+  const data = await response.json()
+
   if (!response.ok) {
-    throw new Error('Falha na API do Gemini')
+    throw new Error(data.error || 'Erro ao gerar reflexão')
   }
 
-  const json = await response.json()
-  const text =
-    json?.candidates?.[0]?.content?.parts?.[0]?.text
+  return data.content
+}
 
-  if (!text) {
-    throw new Error('Resposta inválida da IA')
-  }
+export async function listarReflexoes() {
+  const { data, error } = await supabase
+    .from('reflections')
+    .select('*')
+    .order('created_at', { ascending: false })
 
-  // 💾 salvar
-  const { error } = await supabase.from('reflections').insert({
-    user_id: user.id,
-    content: text,
-    is_ai_generated: true,
-  })
-
-  if (error) throw new Error('Erro ao salvar reflexão')
-
-  return text
+  if (error) throw error
+  return data
 }
